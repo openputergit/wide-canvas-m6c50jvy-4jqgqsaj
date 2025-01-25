@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentalAI Assistant - Smart Disease Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 5px solid #3498db;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #00B4DB 0%, #0083B0 100%);
+        }
+        .canvas-container {
+            margin: 0 auto;
+        }
+        .disease-highlight {
+            position: absolute;
+            border: 2px solid #FF4444;
+            background-color: rgba(255, 68, 68, 0.2);
+            pointer-events: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="gradient-bg p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center">
+                <i class="bi bi-heart-pulse-fill text-white text-3xl mr-2"></i>
+                <h1 class="text-2xl font-bold text-white">DentalAI Assistant</h1>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="toggleHistory()" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition duration-300">
+                    <i class="bi bi-clock-history"></i> History
+                </button>
+                <button onclick="showEmergencyContacts()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition duration-300">
+                    <i class="bi bi-exclamation-triangle"></i> Emergency
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- Feature Cards -->
+        <div class="grid md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <i class="bi bi-search text-3xl text-blue-500"></i>
+                <h3 class="text-xl font-semibold mt-3">Early Detection</h3>
+                <p class="text-gray-600 mt-2">Advanced AI-powered analysis for early oral disease detection</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <i class="bi bi-clipboard2-pulse text-3xl text-green-500"></i>
+                <h3 class="text-xl font-semibold mt-3">Smart Diagnosis</h3>
+                <p class="text-gray-600 mt-2">Accurate disease identification with detailed reports</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <i class="bi bi-geo-alt text-3xl text-purple-500"></i>
+                <h3 class="text-xl font-semibold mt-3">Expert Connect</h3>
+                <p class="text-gray-600 mt-2">Instant connection with nearby dental professionals</p>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Upload Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4">Image Analysis</h2>
+                <div class="mb-4">
+                    <label class="block mb-2">Select Image Type:</label>
+                    <select id="imageType" class="w-full p-2 border rounded-lg">
+                        <option value="xray">X-Ray</option>
+                        <option value="intraoral">Intraoral Photo</option>
+                        <option value="panoramic">Panoramic View</option>
+                    </select>
+                </div>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 mb-4 relative" 
+                     onclick="document.getElementById('imageInput').click()"
+                     ondrop="handleDrop(event)"
+                     ondragover="handleDragOver(event)">
+                    <i class="bi bi-cloud-upload text-4xl text-gray-400"></i>
+                    <p class="mt-2">Click to upload or drag and drop</p>
+                    <input type="file" id="imageInput" class="hidden" accept="image/*" onchange="handleImageUpload(event)">
+                </div>
+                <div id="canvasContainer" class="relative hidden mb-4">
+                    <canvas id="imageCanvas"></canvas>
+                </div>
+                <button onclick="analyzeImage()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition duration-300">
+                    <i class="bi bi-search"></i> Analyze Image
+                </button>
+                <div id="loader" class="loader mx-auto mt-4"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4">Diagnosis Results</h2>
+                <div id="results" class="space-y-4">
+                    <div id="noResults" class="text-gray-500 text-center">
+                        <i class="bi bi-info-circle text-4xl"></i>
+                        <p class="mt-2">Upload an image to see analysis results</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Treatment & Recommendations -->
+        <div class="mt-8 grid md:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4">Treatment Plan</h2>
+                <div id="treatmentPlan" class="space-y-4">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4">Nearby Specialists</h2>
+                <div id="specialists" class="space-y-4">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Emergency Modal -->
+    <div id="emergencyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-red-500">Emergency Services</h3>
+                <button onclick="hideEmergencyContacts()" class="text-gray-500 hover:text-gray-700">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center p-4 bg-red-50 rounded-lg">
+                    <i class="bi bi-telephone-fill text-red-500 text-2xl mr-4"></i>
+                    <div>
+                        <p class="font-semibold">Emergency Helpline</p>
+                        <p class="text-red-500 text-lg">911</p>
+                    </div>
+                </div>
+                <div class="flex items-center p-4 bg-blue-50 rounded-lg">
+                    <i class="bi bi-hospital-fill text-blue-500 text-2xl mr-4"></i>
+                    <div>
+                        <p class="font-semibold">24/7 Dental Emergency</p>
+                        <p class="text-blue-500 text-lg">1-800-DENTIST</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let canvas;
+        let uploadedImage = null;
+        let imageData = null;
+
+        function initCanvas() {
+            canvas = new fabric.Canvas('imageCanvas', {
+                selection: false,
+                interactive: false
+            });
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                handleImageFile(file);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleImageFile(file);
+            }
+        }
+
+        function handleImageFile(file) {
+            uploadedImage = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imageData = e.target.result;
+                document.getElementById('canvasContainer').classList.remove('hidden');
+                if (!canvas) {
+                    initCanvas();
+                }
+                fabric.Image.fromURL(imageData, function(img) {
+                    canvas.setDimensions({
+                        width: img.width,
+                        height: img.height
+                    });
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+                });
+            }
+            reader.readAsDataURL(file);
+        }
+
+        async function analyzeImage() {
+            if (!uploadedImage) {
+                alert('Please upload an image first');
+                return;
+            }
+
+            document.getElementById('loader').style.display = 'block';
+            
+            const formData = new FormData();
+            formData.append('file', uploadedImage);
+            formData.append('userId', 'dental-user');
+            formData.append('appSlug', 'dental-ai-assistant');
+
+            try {
+                // Upload image
+                const uploadResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/storage/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer 1DH96l8kQYY82oi3T4Gh9I6pXMM2'
+                    },
+                    body: formData
+                });
+
+                const uploadData = await uploadResponse.json();
+
+                // Analyze with AI
+                const aiResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer 1DH96l8kQYY82oi3T4Gh9I6pXMM2',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{
+                            role: "user",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: "Analyze this dental image. Identify any dental diseases, cavities, or abnormalities. Provide detailed locations and severity levels."
+                                },
+                                {
+                                    type: "image_url",
+                                    image_url: {
+                                        url: uploadData.url
+                                    }
+                                }
+                            ]
+                        }]
+                    })
+                });
+
+                const aiData = await aiResponse.json();
+                
+                displayResults(aiData.message);
+                generateTreatmentPlan(aiData.message);
+                displayNearbySpecialists();
+                highlightDetections();
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Analysis failed. Please try again.');
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        function displayResults(analysis) {
+            document.getElementById('results').innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-blue-700 mb-2">AI Analysis Results</h3>
+                        <p class="text-gray-700">${analysis}</p>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-yellow-700 mb-2">Severity Level</h3>
+                        <div class="flex items-center">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-yellow-500 h-2.5 rounded-full" style="width: 70%"></div>
+                            </div>
+                            <span class="ml-2 text-sm text-gray-600">70%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateTreatmentPlan(analysis) {
+            document.getElementById('treatmentPlan').innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-green-700">Recommended Treatment</h3>
+                        <ul class="list-disc list-inside mt-2 space-y-2">
+                            <li>Schedule immediate dental cleaning</li>
+                            <li>Apply fluoride treatment</li>
+                            <li>Consider dental sealants</li>
+                        </ul>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-purple-700">Prescription</h3>
+                        <div class="mt-2">
+                            <p>• Antibacterial mouthwash (2x daily)</p>
+                            <p>• Fluoride toothpaste (1450ppm)</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayNearbySpecialists() {
+            document.getElementById('specialists').innerHTML = `
+                <div class="space-y-4">
+                    <div class="border p-4 rounded-lg hover:shadow-lg transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-semibold">Dr. Sarah Johnson</h4>
+                                <p class="text-sm text-gray-600">Orthodontist</p>
+                                <div class="flex items-center mt-1">
+                                    <i class="bi bi-star-fill text-yellow-400"></i>
+                                    <span class="ml-1 text-sm">4.9 (120 reviews)</span>
+                                </div>
+                            </div>
+                            <button class="bg-blue-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-blue-600">
+                                Book Now
+                            </button>
+                        </div>
+                        <div class="mt-3">
+                            <p class="text-sm text-gray-600"><i class="bi bi-geo-alt"></i> 0.8 miles away</p>
+                            <p class="text-sm text-gray-600"><i class="bi bi-clock"></i> Available today</p>
+                        </div>
+                    </div>
+                    <!-- More specialists... -->
+                </div>
+            `;
+        }
+
+        function highlightDetections() {
+            // Mock detection areas
+            const detections = [
+                { x: 50, y: 50, width: 100, height: 100, label: "Cavity" },
+                { x: 200, y: 150, width: 80, height: 80, label: "Plaque" }
+            ];
+
+            detections.forEach(det => {
+                const rect = new fabric.Rect({
+                    left: det.x,
+                    top: det.y,
+                    width: det.width,
+                    height: det.height,
+                    stroke: 'red',
+                    strokeWidth: 2,
+                    fill: 'rgba(255, 0, 0, 0.2)',
+                    selectable: false
+                });
+
+                const label = new fabric.Text(det.label, {
+                    left: det.x,
+                    top: det.y - 20,
+                    fontSize: 14,
+                    fill: 'red'
+                });
+
+                canvas.add(rect);
+                canvas.add(label);
+            });
+
+            canvas.renderAll();
+        }
+
+        function showEmergencyContacts() {
+            document.getElementById('emergencyModal').style.display = 'flex';
+        }
+
+        function hideEmergencyContacts() {
+            document.getElementById('emergencyModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('emergencyModal');
+            if (event.target === modal) {
+                hideEmergencyContacts();
+            }
+        }
+
+        // Initialize canvas when page loads
+        window.onload = function() {
+            initCanvas();
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
